@@ -26,7 +26,25 @@ npm install --legacy-peer-deps
 
 ## Design Assumptions
 
-<!-- Assumptions are added here as they arise during implementation -->
+- **What**: `pricing.json` has no `currentPrice` field — only `open`, `close`, `ask`, `high`, `low`.
+  **Decision**: Use `ask` as the current/display price throughout the UI.
+  **Why**: `ask` is the price a buyer would pay right now, which is the most meaningful "live" price in a trading context.
+
+- **What**: Some securities in `details.json` have `null` for `volume` and `marketCap`.
+  **Decision**: Render `—` (em-dash) in the UI for null numeric fields rather than `0` or hiding the row.
+  **Why**: `0` would imply no volume, which is factually wrong. `—` signals "data unavailable" without misleading the user.
+
+- **What**: `details.json` and `pricing.json` use different `id` values for the same security.
+  **Decision**: Join exclusively on `symbol`. The `id` fields are treated as internal database keys and never exposed to the component layer.
+  **Why**: `symbol` is the stable, human-readable identifier used across both files and matches what a real securities API would use as the join key.
+
+- **What**: Figma only defines the gain (green) price change state — loss and flat states are not designed.
+  **Decision**: Loss renders in red with a `-` prefix; flat renders in muted grey (`ion-color-medium`) with `0.00%`.
+  **Why**: Red for loss and grey for flat are universal conventions in trading UIs (Robinhood, CommSec, Stake itself). Omitting them would leave the UI broken for any non-gain position.
+
+- **What**: The assessment asks for a holdings data design but doesn't provide the file.
+  **Decision**: Created `holdings.mock.json` with 7 positions (mix of gains，losses, and flat) to seed `HoldingsService`.
+  **Why**: Provides realistic data for the Invest page. Positions are intentionally mixed — some below `ask` (unrealised gain), some above (unrealised loss) — to exercise price change rendering in both directions.
 
 ## Component Architecture
 
@@ -34,7 +52,53 @@ npm install --legacy-peer-deps
 
 ## API / Data Model Design
 
-<!-- Data source design and how it connects to the implementation -->
+This section documents the API structure expected in a production environment. In this assessment, real HTTP calls are simulated using `of(data).pipe(delay(300))` inside the service layer — the frontend is written against this contract so a real `HttpClient.get()` could replace the mock with no component changes.
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/securities` | All tradeable securities — static metadata (symbol, name, type, logo, volume, marketCap) |
+| `GET` | `/api/securities/:symbol/price` | Live pricing for one security (open, close, ask, high, low) |
+| `GET` | `/api/holdings` | Authenticated user's current portfolio positions |
+| `POST` | `/api/orders` | Place a buy order `{ symbol, quantity, price }` |
+
+### Why two separate endpoints for securities?
+
+`/api/securities` (metadata) and `/api/securities/:symbol/price` (pricing) are intentionally split because they change at very different rates:
+
+- **Metadata** (name, logo, type) is essentially static — cached aggressively, fetched once on app load.
+- **Pricing** is volatile — in production this would be polled every few seconds or replaced by a WebSocket stream.
+
+Keeping them separate avoids invalidating the metadata cache every time a price ticks.
+
+### Join strategy
+
+The provided JSON files have **different `id` values** for the same security. The client-side join happens in `SecurityService` on `symbol`:
+
+```
+SecurityDetail (details.json)  ──┐
+                                  ├─ join on `symbol` ──▶ SecurityViewModel
+SecurityPricing (pricing.json) ──┘
+```
+
+### Holdings data model
+
+`GET /api/holdings` returns user positions. Each position references a security by `symbol` only — the frontend enriches it with metadata and live price via the join above:
+
+```json
+{ "symbol": "AAPL", "shares": 10, "averageCost": 1080.00 }
+```
+
+The holdings endpoint owns only position data. It does not duplicate security metadata, which is already available from `/api/securities`.
+
+### Order response
+
+`POST /api/orders` returns an order confirmation. This response drives the BUY animation success state in `OrderFormComponent`:
+
+```json
+{ "orderId": "abc123", "symbol": "AAPL", "shares": 2, "executedPrice": 1128.00, "status": "filled" }
+```
 
 ## Trade-offs & Unfinished Items
 

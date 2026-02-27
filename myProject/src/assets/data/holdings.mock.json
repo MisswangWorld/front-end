@@ -1,0 +1,10 @@
+[
+  { "symbol": "AAPL", "shares": 10, "averageCost": 1080.00 },
+  { "symbol": "MSFT", "shares": 5, "averageCost": 790.00 },
+  { "symbol": "NVDA", "shares": 8, "averageCost": 760.00 },
+  { "symbol": "TSLA", "shares": 3, "averageCost": 1310.00 },
+  { "symbol": "AMZN", "shares": 2, "averageCost": 1400.00 },
+  { "symbol": "NFLX", "shares": 6, "averageCost": 490.00 },
+  { "symbol": "GOOGL", "shares": 4, "averageCost": 1200.00 },
+  { "symbol": "META", "shares": 6, "averageCost": 324.24 }
+]
