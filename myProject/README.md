@@ -46,9 +46,43 @@ npm install --legacy-peer-deps
   **Decision**: Created `holdings.mock.json` with 7 positions (mix of gains，losses, and flat) to seed `HoldingsService`.
   **Why**: Provides realistic data for the Invest page. Positions are intentionally mixed — some below `ask` (unrealised gain), some above (unrealised loss) — to exercise price change rendering in both directions.
 
+- **What**: The "Change" column in the Holdings list is ambiguous — it could mean today's price movement or the position's unrealised gain.
+  **Decision**: Render `unrealisedGainPercent` (ask vs averageCost) in the Holdings "Change" badge, not `priceChangePercent`.
+  **Why**: The Holdings list is a portfolio view — the most meaningful number for an investor is how their position is performing relative to what they paid, not how the stock moved today. Unrealised gain answers "am I up or down on this trade?" which is what a holdings screen is for.
+
 ## Component Architecture
 
-<!-- How components are structured to handle future design updates -->
+### Why `combineLatest` instead of `forkJoin`
+
+The service layer uses `combineLatest` to merge `details$` and `pricing$` (and positions + securities in `HoldingsService`). This is a deliberate forward-compatible choice:
+
+- `forkJoin` requires every stream to **complete** before it emits — it only works for one-shot requests
+- `combineLatest` works with streams that emit multiple times — it re-runs the join whenever any source updates
+
+In the current mock, `loadPricing()` uses `of(data).pipe(delay(300))` — a one-shot stream. But in production, pricing would be a WebSocket or polling stream that emits continuously. Switching `loadPricing()` to a real-time source requires **zero changes** to `combineLatest`, `joinSecurities`, or any component — the UI automatically becomes live-updating.
+
+### ViewModel isolation
+
+Components never touch raw JSON shapes (`SecurityDetail`, `SecurityPricing`). They only consume:
+
+- `SecurityViewModel` — all fields needed to render any security (Discover tab)
+- `HoldingViewModel` — extends `SecurityViewModel` with position fields (Invest tab)
+
+If the backend data format changes, the fix is in the service's join method only.
+
+### `HoldingViewModel` shape — full extension vs. lean model
+
+**The trade-off**: The current Holdings list design only displays `symbol`, `shares`, current price (`ask`), and `unrealisedGainPercent` — it does not visibly use `logo`, `fullName`, or `type`. A stricter YAGNI approach would define a lean model with only those four fields.
+
+**Decision**: `HoldingViewModel` extends `SecurityViewModel` fully (inherits all ~11 fields), then adds position-specific fields on top.
+
+**Why**:
+1. **TypeScript structural typing** — any component that accepts `SecurityViewModel` as an `@Input()` (e.g. `InstrumentComponent`, `CardComponent`) can receive a `HoldingViewModel` directly, because it is a structural superset. A lean model would break this: you'd need an explicit cast or a separate input type.
+2. **Zero-cost design flexibility** — if the Holdings row later shows a logo or full name (common in real trading apps), no model or service changes are needed. The data is already there.
+3. **Consistency** — the entire app works in one ViewModel currency. Pages don't need to know which fields a component actually renders; they just pass the ViewModel through.
+
+The downside is carrying ~7 fields the current Holdings list doesn't render. This is an acceptable cost given the reusability and type-safety benefits.
+
 
 ## API / Data Model Design
 
