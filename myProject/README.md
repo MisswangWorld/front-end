@@ -50,6 +50,10 @@ npm install --legacy-peer-deps
   **Decision**: Render `unrealisedGainPercent` (ask vs averageCost) in the Holdings "Change" badge, not `priceChangePercent`.
   **Why**: The Holdings list is a portfolio view — the most meaningful number for an investor is how their position is performing relative to what they paid, not how the stock moved today. Unrealised gain answers "am I up or down on this trade?" which is what a holdings screen is for.
 
+- **What**: The current `details.json` dataset only contains `stock` and `etf` types — no `otc` entries are present.
+  **Decision**: `SecurityType` in `security-detail.model.ts` is still defined as `'stock' | 'etf' | 'otc'`, and `TypeBadgeComponent` renders all three variants.
+  **Why**: The type union and the badge styles reflect the full domain, not the current dataset. If an `otc` security is added (or arrives from a real API), nothing breaks — no model change, no component update needed. Constraining the type to only what the mock data happens to contain would be over-fitting to test data.
+
 ## Component Architecture
 
 ### Why `combineLatest` instead of `forkJoin`

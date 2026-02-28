@@ -1,0 +1,29 @@
+// Outlined pill badge
+// Adding a new type (e.g. 'crypto') only requires one new &--crypto block here.
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 100px; // full pill shape
+  border: 1.5px solid currentColor; // WHY: border inherits `color`, so only `color` needs to be set per type
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  line-height: 1.6;
+  white-space: nowrap;
+
+  // Stock
+  &--stock {
+    color: #1a1a1a;
+  }
+
+  // ETF
+  &--etf {
+    color: #0d9488;
+  }
+
+  // OTC
+  &--otc {
+    color: #d97706;
+  }
+}

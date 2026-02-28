@@ -1,0 +1,91 @@
+<!-- ─── LARGE — full-width featured card ─── -->
+@if (size === 'large') {
+  <ion-card button (click)="onBuyClick()" class="card card--large">
+    <ion-card-content>
+
+      <!-- Row 1: logo + type badge -->
+      <div class="card__header">
+        <img class="card__logo" [src]="security.logo" [alt]="security.symbol" />
+        <app-type-badge [type]="security.type" />
+      </div>
+
+      <!-- Row 2: big price -->
+      <p class="card__price card__price--large">
+        {{ security.ask | currency:'USD':'symbol':'1.2-2' }}
+      </p>
+
+      <!-- Row 3: "SYMBOL • Full Name" -->
+      <p class="card__name">{{ nameLabel }}</p>
+
+      <!-- Divider before metrics -->
+      <hr class="card__divider" />
+
+      <!-- Row 4: metrics — volume | market cap | price range -->
+      <div class="card__metrics">
+        <div class="card__metric">
+          <img class="card__metric-icon" src="assets/icons/circle-dollar.svg" alt="volume" />
+          <span>{{ formattedVolume }}</span>
+        </div>
+        <div class="card__metric">
+          <img class="card__metric-icon" src="assets/icons/target.svg" alt="market cap" />
+          <span>{{ formattedMarketCap }}</span>
+        </div>
+        <div class="card__metric">
+          <img class="card__metric-icon" src="assets/icons/square-dollar.svg" alt="price range" />
+          <span>{{ priceRange }}</span>
+        </div>
+      </div>
+
+    </ion-card-content>
+  </ion-card>
+
+<!-- ─── MEDIUM — horizontal-scroll card ─── -->
+} @else if (size === 'medium') {
+  <ion-card button (click)="onBuyClick()" class="card card--medium">
+    <ion-card-content>
+
+      <!-- Row 1: logo + symbol (left), type badge (right) -->
+      <div class="card__header">
+        <div class="card__header-left">
+          <img class="card__logo card__logo--small" [src]="security.logo" [alt]="security.symbol" />
+          <span class="card__symbol">{{ security.symbol }}</span>
+        </div>
+        <app-type-badge [type]="security.type" />
+      </div>
+
+      <!-- Row 2: price -->
+      <p class="card__price card__price--medium">
+        {{ security.ask | currency:'USD':'symbol':'1.2-2' }}
+      </p>
+
+      <!-- Row 3: "SYMBOL • Full Name" -->
+      <p class="card__name">{{ nameLabel }}</p>
+
+    </ion-card-content>
+  </ion-card>
+
+<!-- ─── SMALL — compact trending tile ─── -->
+} @else {
+  <ion-card button (click)="onBuyClick()" class="card card--small">
+    <ion-card-content>
+
+      <!-- Row 1: logo (left), type badge (right) -->
+      <div class="card__header">
+        <img class="card__logo card__logo--small" [src]="security.logo" [alt]="security.symbol" />
+        <app-type-badge [type]="security.type" />
+      </div>
+
+      <!-- Row 2: symbol -->
+      <p class="card__symbol card__symbol--block">{{ security.symbol }}</p>
+
+      <!-- Row 3: full name -->
+      <p class="card__name card__name--small">{{ security.fullName }}</p>
+
+      <!-- Row 4: price -->
+      <p class="card__price card__price--small">
+        {{ security.ask | currency:'USD':'symbol':'1.2-2' }}
+      </p>
+
+    </ion-card-content>
+  </ion-card>
+}

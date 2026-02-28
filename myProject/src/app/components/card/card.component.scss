@@ -1,0 +1,126 @@
+// ─── Base card shell ───────────────────────────────────────────────────────
+.card {
+  margin: 0; // parent container controls spacing via gap/padding, not margin
+  cursor: pointer;
+
+  ion-card-content {
+    padding: 16px;
+  }
+}
+
+// ─── Shared sub-elements ───────────────────────────────────────────────────
+.card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  &-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.card__logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
+
+  &--small {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.card__symbol {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ion-text-color, #1a1a1a);
+  margin: 0;
+
+  // Block variant used in small card where symbol is on its own line
+  &--block {
+    display: block;
+    margin: 8px 0 2px;
+  }
+}
+
+.card__name {
+  font-size: 13px;
+  color: var(--ion-color-medium);
+  margin: 4px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &--small {
+    font-size: 12px;
+    margin: 0 0 6px;
+  }
+}
+
+.card__price {
+  font-weight: 700;
+  margin: 0;
+  color: var(--ion-text-color, #1a1a1a);
+
+  &--large {
+    font-size: 28px;
+    margin: 4px 0 2px;
+  }
+
+  &--medium {
+    font-size: 20px;
+    margin: 8px 0 2px;
+  }
+
+  &--small {
+    font-size: 15px;
+    font-weight: 600;
+  }
+}
+
+// ─── Large card only ────────────────────────────────────────────────────────
+.card--large {
+  width: 100%;
+}
+
+.card__divider {
+  border: none;
+  border-top: 1px solid var(--ion-border-color, #e8e8e8);
+  margin: 12px 0;
+}
+
+.card__metrics {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.card__metric {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--ion-color-medium);
+}
+
+.card__metric-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
+}
+
+// ─── Medium card ────────────────────────────────────────────────────────────
+.card--medium {
+  width: 180px; // fixed width for horizontal scroll container
+  flex-shrink: 0;
+}
+
+// ─── Small card ─────────────────────────────────────────────────────────────
+.card--small {
+  width: 140px; // compact fixed width for trending row
+  flex-shrink: 0;
+}

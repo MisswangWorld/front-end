@@ -1,0 +1,30 @@
+<ion-item button lines="full" (click)="onBuyClick()">
+  <div class="row">
+
+    <!-- LEFT: symbol + contextual subtitle -->
+    <div class="row__left">
+      <span class="row__symbol">{{ security.symbol }}</span>
+
+      @if (shares !== null) {
+        <!-- "3.0282 shares" -->
+        <span class="row__sub">{{ shares | number:'1.0-4' }} shares</span>
+      } @else {
+        <!-- fullname -->
+        <span class="row__sub">{{ security.fullName }}</span>
+      }
+    </div>
+
+    <!-- RIGHT: current price + optional change badge -->
+    <div class="row__right">
+      <!-- '$105.44' -->
+      <span class="row__price">{{ security.ask | currency:'USD':'symbol':'1.2-2' }}</span>
+
+      @if (shares !== null && changePercent !== null) {
+        <span class="change-badge" [ngClass]="changeBadgeClass">
+          {{ formattedChangePercent }}
+        </span>
+      }
+    </div>
+
+  </div>
+</ion-item>
