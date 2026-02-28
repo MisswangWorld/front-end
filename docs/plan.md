@@ -1,12 +1,12 @@
 # Plan
 
-## Phase 1 — Scaffold ✅
+## Phase 1 — Scaffold
 - Project setup + assets
 
-## Phase 2 — API Design ✅
+## Phase 2 — API Design
 - README + mock data
 
-## Phase 3 — Data Layer ✅
+## Phase 3 — Data Layer
 - Models + Services
 
 ## Phase 4 — Components
