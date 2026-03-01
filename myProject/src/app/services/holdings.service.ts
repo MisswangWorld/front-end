@@ -1,26 +1,30 @@
 // holdings.service.ts — manages the user's portfolio positions (Invest tab).
-// Simulates GET /api/holdings, then combines positions with live SecurityViewModels
+// Fetches positions via HttpClient, then combines with live SecurityViewModels
 // to produce HoldingViewModels. BehaviorSubject holds mutable position state.
+//
+// Swapping mock → real API: update the URL in loadHoldings() — nothing else changes.
 
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, combineLatest, of } from 'rxjs';
-import { delay, map, shareReplay } from 'rxjs/operators';
+import { BehaviorSubject, Observable, combineLatest, throwError } from 'rxjs';
+import { catchError, map, retry, shareReplay } from 'rxjs/operators';
 
+import { environment } from '../../environments/environment';
 import { HoldingRaw } from '../models/holding-raw.model';
 import { HoldingViewModel } from '../models/holding-view.model';
 import { SecurityViewModel } from '../models/security-view.model';
 import { SecurityService } from './security.service';
-
-import { SIMULATED_DELAY_MS } from '../constants';
-
-import holdingsData from '../../assets/data/holdings.mock.json';
+import { toHttpErrorMessage } from '../utils/http-error.util';
 
 @Injectable({ providedIn: 'root' })
 export class HoldingsService {
   private readonly positionsSubject = new BehaviorSubject<HoldingRaw[]>([]);
   public readonly holdings$: Observable<HoldingViewModel[]>;
 
-  constructor(private readonly securityService: SecurityService) {
+  constructor(
+    private readonly http: HttpClient,
+    private readonly securityService: SecurityService,
+  ) {
     // WHY: subscribe here (not in a stream) because BehaviorSubject requires a
     // synchronous initial value. loadHoldings() completes after one emission so
     // this subscription auto-cleans — no takeUntilDestroyed() needed.
@@ -28,9 +32,31 @@ export class HoldingsService {
     this.holdings$ = this.buildHoldingsStream();
   }
 
-  // Simulates GET /api/holdings
+  // GET /api/holdings — swap URL for the real endpoint in environment.prod.ts
   private loadHoldings(): Observable<HoldingRaw[]> {
-    return of(holdingsData as HoldingRaw[]).pipe(delay(SIMULATED_DELAY_MS));
+    return this.http.get<HoldingRaw[]>(`${environment.apiBaseUrl}/holdings.mock.json`).pipe(
+      // WHY retry before catchError: re-issues the GET up to 2 times on transient failures
+      // before converting the error to a readable message. GET is idempotent so retrying is safe.
+      retry({ count: 2, delay: 1000 }),
+      catchError((err: HttpErrorResponse) => throwError(() => new Error(toHttpErrorMessage(err)))),
+    );
+  }
+
+  /**
+   * Returns a slice of holdings up to `limit` items plus a `hasMore` flag.
+   *
+   * Mock: slices the full in-memory list.
+   * Real API: replace body with GET /api/holdings?limit=N — nothing else changes.
+   * WHY here (not in the page): the page only knows "how many to show";
+   * the service owns the data-fetching contract.
+   */
+  public getHoldingsPage(limit: number): Observable<{ data: HoldingViewModel[]; hasMore: boolean }> {
+    return this.holdings$.pipe(
+      map((all) => ({
+        data: all.slice(0, limit),
+        hasMore: all.length > limit,
+      })),
+    );
   }
 
   public addHolding(symbol: string, shares: number, averageCost: number): void {

@@ -6,12 +6,17 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   EventEmitter,
   Input,
   OnChanges,
   Output,
   SimpleChanges,
+  inject,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, timer } from 'rxjs';
+import { switchMap, tap, takeUntil } from 'rxjs/operators';
 
 import { SecurityViewModel } from '../../models/security-view.model';
 import { backdropFadeAnimation, sheetSlideAnimation } from './order-form.animations';
@@ -69,6 +74,9 @@ export class OrderFormComponent implements OnChanges {
   formStatus: FormStatus = 'form';
   amount = '';
 
+  /** Text polled by the aria-live region. Updated at each stage of the order flow. */
+  liveAnnouncement = '';
+
   // ── Drag state ──────────────────────────────────────────────────────────────
   /** Current translateX of the chevron circle in px. Bound to [style.transform]. */
   dragX = 0;
@@ -82,15 +90,32 @@ export class OrderFormComponent implements OnChanges {
   /** Maximum px the chevron can travel (button width minus chevron width minus inset). */
   private maxDragX = 0;
 
+  /**
+   * Tied to Angular's component lifetime via inject(DestroyRef).
+   * Passed to takeUntilDestroyed() so RxJS subscriptions auto-cancel when the
+   * component is destroyed — no manual ngOnDestroy needed.
+   */
+  private readonly destroyRef = inject(DestroyRef);
+
+  /**
+   * Emits when a new security opens while a dismiss-reset is pending.
+   * WHY: if the user re-opens the form within 400 ms of closing it, we cancel
+   * the pending state reset so it doesn't clobber the already-clean new form.
+   */
+  private readonly dismissReset$ = new Subject<void>();
+
   constructor(private readonly cdr: ChangeDetectorRef) {}
 
   // Reset form whenever a new security is passed in (sheet re-opens)
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['security'] && changes['security'].currentValue !== null) {
+      // Cancel any pending dismiss-reset so it can't fire on the newly-opened form.
+      this.dismissReset$.next();
       this.formStatus = 'form';
       this.amount = '';
       this.dragX = 0;
       this.isDragging = false;
+      this.liveAnnouncement = '';
     }
   }
 
@@ -101,7 +126,7 @@ export class OrderFormComponent implements OnChanges {
 
   /** Shares = amount ÷ ask price, shown in the read-only Shares field. */
   get computedShares(): string {
-    if (!this.security || !this.isAmountValid) return '0.0000';
+    if (!this.security || !this.isAmountValid || this.security.ask === 0) return '0.0000';
     return (parseFloat(this.amount) / this.security.ask).toFixed(4);
   }
 
@@ -109,6 +134,59 @@ export class OrderFormComponent implements OnChanges {
     this.amount = (event.target as HTMLInputElement).value;
     // WHY: OnPush won't pick up DOM events automatically — markForCheck() forces a re-check.
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Keyboard alternative to the swipe gesture.
+   * Enter or Space on the focused swipe button triggers a purchase, matching
+   * the ARIA button contract (interactive elements must respond to both keys).
+   */
+  handleSwipeKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault(); // prevent Space from scrolling the page
+    if (!this.isAmountValid || this.formStatus === 'submitting') return;
+    this.confirmBuy();
+  }
+
+  /**
+   * Focus trap + Escape dismiss for the dialog.
+   * Cycles focus between the amount input and the swipe button (when enabled).
+   * Pressing Escape closes the sheet without confirming.
+   *
+   * WHY: Without a trap, Tab moves focus behind the open sheet, breaking
+   * keyboard navigation. The ARIA dialog pattern mandates focus containment.
+   */
+  handleSheetKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.handleDismiss();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const sheet = event.currentTarget as HTMLElement;
+    // Query in DOM order: native inputs + elements explicitly made focusable (tabindex="0").
+    // The swipe button uses tabindex="-1" when disabled, so it is excluded automatically.
+    const focusable = Array.from(
+      sheet.querySelectorAll<HTMLElement>('input:not([disabled]), [tabindex="0"]'),
+    );
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey) {
+      // Shift+Tab on the first element → wrap to last
+      if (document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      }
+    } else {
+      // Tab on the last element → wrap to first
+      if (document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
   }
 
   // ── Pointer event handlers ─────────────────────────────────────────────────
@@ -172,28 +250,50 @@ export class OrderFormComponent implements OnChanges {
     // Move chevron to the end so the button goes all-black cleanly.
     this.dragX = this.maxDragX;
     this.formStatus = 'submitting';
+    // WHY: announce immediately so screen readers don't wait 1 s in silence.
+    this.liveAnnouncement = 'Processing order…';
     this.cdr.markForCheck();
 
-    // WHY setTimeout: simulates a real async POST. 1 s gives the user visual feedback.
-    setTimeout(() => {
+    // WHY timer(1000): simulates a real async POST — in production this is an HTTP Observable.
+    // takeUntilDestroyed auto-cancels if the user navigates away mid-flight, so no manual
+    // cleanup is needed (no ngOnDestroy, no timer handles).
+    timer(1000).pipe(
+      // WHY tap: set the aria-live confirmation text BEFORE emitting, so Angular has one CD
+      // cycle to render it into the live region while the component is still mounted.
+      tap(() => {
+        this.liveAnnouncement = `${this.security!.symbol} purchase confirmed.`;
+        this.cdr.markForCheck();
+      }),
+      // WHY switchMap + timer(100): wait one extra CD cycle so the aria-live text is
+      // actually rendered before the parent's @if destroys this component.
+      switchMap(() => timer(100)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
       this.buyConfirmed.emit({
         symbol: this.security!.symbol,
         shares: parseFloat(this.computedShares),
         amount: parseFloat(this.amount),
       });
       this.handleDismiss();
-    }, 1000);
+    });
   }
 
   handleDismiss(): void {
     this.dismissed.emit();
-    // Reset after leave animation completes so the form is clean next time it opens.
-    setTimeout(() => {
+    // Reset form state after the leave animation completes so the form is clean next time.
+    // WHY timer(400): the sheet's leave animation takes 280 ms — waiting slightly longer
+    // ensures the reset happens off-screen, preventing a visual flash of blank state.
+    // WHY takeUntil(dismissReset$): if a new security opens within 400 ms, ngOnChanges
+    // cancels this timer so it doesn't clobber the freshly-opened form's state.
+    timer(400).pipe(
+      takeUntil(this.dismissReset$),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
       this.formStatus = 'form';
       this.amount = '';
       this.dragX = 0;
       this.cdr.markForCheck();
-    }, 400);
+    });
   }
 
 }

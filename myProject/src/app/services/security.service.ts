@@ -1,31 +1,49 @@
 // security.service.ts — data layer for securities.
-// Loads details.json + pricing.json, joins them on `symbol`, and exposes
+// Loads details + pricing via HttpClient, joins them on `symbol`, and exposes
 // typed Observables for components to consume. No component ever touches raw JSON.
+//
+// Swapping mock → real API: update apiBaseUrl in environment.prod.ts and adjust
+// the URL strings in the three private load methods below — nothing else changes.
 
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, combineLatest, of } from 'rxjs';
-import { delay, map, shareReplay, take } from 'rxjs/operators';
+import { BehaviorSubject, Observable, combineLatest, throwError } from 'rxjs';
+import { catchError, map, retry, shareReplay, take } from 'rxjs/operators';
 
+import { environment } from '../../environments/environment';
 import { RecentSearch } from '../models/recent-search.model';
 import { SecurityDetail } from '../models/security-detail.model';
 import { SecurityPricing } from '../models/security-pricing.model';
 import { SecurityViewModel } from '../models/security-view.model';
-
-import { SIMULATED_DELAY_MS } from '../constants';
-
-// If we later switch to real HttpClient.get(), only this file changes.
-import detailsData from '../../assets/data/details.json';
-import pricingData from '../../assets/data/pricing.json';
-import recentSearchedData from '../../assets/data/recently-searched.mock.json';
+import { toHttpErrorMessage } from '../utils/http-error.util';
 
 
 @Injectable({ providedIn: 'root' })
 export class SecurityService {
   private readonly securities$: Observable<SecurityViewModel[]> = this.buildSecuritiesStream();
+
+  /**
+   * Pre-sorted stream: securities with a valid volume, ranked highest-first.
+   * WHY shareReplay(1): the sort runs once per source emission and the result is
+   * shared across all subscribers. Without this, every call to getTopByVolume()
+   * would re-sort the full array independently on each tick — O(n log n) wasted
+   * work on a high-frequency pricing stream.
+   */
+  private readonly securitiesByVolume$: Observable<SecurityViewModel[]> =
+    this.securities$.pipe(
+      map((securities) =>
+        securities
+          // WHY: filter before sort so null volumes don't interfere with comparisons
+          .filter((s): s is SecurityViewModel & { volume: number } => s.volume !== null)
+          .sort((a, b) => b.volume - a.volume),
+      ),
+      shareReplay(1),
+    );
+
   private readonly recentSearchesSubject = new BehaviorSubject<SecurityViewModel[]>([]);
   public readonly recentSearches$ = this.recentSearchesSubject.asObservable();
 
-  constructor() {
+  constructor(private readonly http: HttpClient) {
     // Seed recently-searched from mock API on service init
     this.initRecentSearches();
   }
@@ -35,18 +53,12 @@ export class SecurityService {
     return this.securities$;
   }
 
-  // Returns the top `count` securities ranked by volume (descending)
+  // Returns the top `count` securities ranked by volume (descending).
+  // WHY: delegates to securitiesByVolume$ so the sort is computed once per source
+  // emission and cached — callers only pay for the cheap .slice().
   public getTopByVolume(count: number): Observable<SecurityViewModel[]> {
-    return this.securities$.pipe(
-      map((securities) =>
-        securities
-          // WHY: filter first so nulls don't interfere with the sort comparison
-          .filter((s): s is SecurityViewModel & { volume: number } => s.volume !== null)
-          // Sort descending — highest volume first
-          .sort((a, b) => b.volume - a.volume)
-          // Take only the requested number of results
-          .slice(0, count),
-      ),
+    return this.securitiesByVolume$.pipe(
+      map((securities) => securities.slice(0, count)),
     );
   }
 
@@ -59,47 +71,72 @@ export class SecurityService {
     this.recentSearchesSubject.next([security, ...deduplicated].slice(0, 10));
   }
 
-  // Returns a filtered list of securities matching the query string
+  // Minimum characters before filtering kicks in.
+  // WHY: queries shorter than this are too broad for a server-side endpoint (e.g. "A"
+  // would match thousands of rows). Below this threshold we return the full cached list
+  // so the user can browse without triggering a network round-trip.
+  private static readonly MIN_SEARCH_LENGTH = 2;
+
+  // Returns a filtered list of securities matching the query string.
+  //
+  // MOCK implementation (current): filters the in-memory shareReplay'd list.
+  //
+  // ── Server-side swap ────────────────────────────────────────────────────────
+  // Replace the `return this.securities$.pipe(map(...))` block below with:
+  //
+  //   return this.http
+  //     .get<SecurityViewModel[]>(
+  //       `${environment.apiBaseUrl}/securities?q=${encodeURIComponent(normalised)}`
+  //     )
+  //     .pipe(retry({ count: 2, delay: 1000 }), catchError(...));
+  //
+  // The caller (discover.page.ts) already has debounceTime + distinctUntilChanged +
+  // switchMap, so it will cancel in-flight requests and deduplicate identical queries.
+  // Nothing outside this method needs to change.
+  // ────────────────────────────────────────────────────────────────────────────
   public searchSecurities(query: string): Observable<SecurityViewModel[]> {
     const normalised = query.trim().toLowerCase();
 
+    // Below the minimum length, return the full list from cache — no filter overhead,
+    // no network round-trip. Preserves the "browse all" UX for short / empty queries.
+    if (normalised.length < SecurityService.MIN_SEARCH_LENGTH) {
+      return this.securities$;
+    }
+
     return this.securities$.pipe(
-      map((securities) => {
-        if (!normalised) {
-          return securities; // empty query → return everything
-        }
-        return securities.filter(
+      map((securities) =>
+        securities.filter(
           (s) =>
             s.symbol.toLowerCase().includes(normalised) ||
             s.fullName.toLowerCase().includes(normalised),
-        );
-      }),
+        ),
+      ),
     );
   }
 
-  
   // Builds the core securities stream by loading both JSON files in parallel
   private buildSecuritiesStream(): Observable<SecurityViewModel[]> {
-    const details$ = this.loadDetails();
-    const pricing$ = this.loadPricing();
-
-    return (
-      combineLatest([details$, pricing$]).pipe(
-        map(([details, pricing]) => this.joinSecurities(details, pricing)),
-        // Cache the result: any future subscriber gets the already-computed list instantly.
-        shareReplay(1),
-      )
+    return combineLatest([this.loadDetails(), this.loadPricing()]).pipe(
+      map(([details, pricing]) => this.joinSecurities(details, pricing)),
+      // Cache the result: any future subscriber gets the already-computed list instantly.
+      shareReplay(1),
     );
   }
 
-  // Simulates GET /api/securities
+  // GET /api/securities — swap URL for the real endpoint in environment.prod.ts
   private loadDetails(): Observable<SecurityDetail[]> {
-    return of(detailsData as SecurityDetail[]).pipe(delay(SIMULATED_DELAY_MS));
+    return this.http.get<SecurityDetail[]>(`${environment.apiBaseUrl}/details.json`).pipe(
+      retry({ count: 2, delay: 1000 }),
+      catchError((err: HttpErrorResponse) => throwError(() => new Error(toHttpErrorMessage(err)))),
+    );
   }
 
-  // Simulates GET /api/securities/:symbol/price
+  // GET /api/securities/:symbol/price
   private loadPricing(): Observable<SecurityPricing[]> {
-    return of(pricingData as SecurityPricing[]).pipe(delay(SIMULATED_DELAY_MS));
+    return this.http.get<SecurityPricing[]>(`${environment.apiBaseUrl}/pricing.json`).pipe(
+      retry({ count: 2, delay: 1000 }),
+      catchError((err: HttpErrorResponse) => throwError(() => new Error(toHttpErrorMessage(err)))),
+    );
   }
 
   // Joins details and pricing arrays on `symbol` to produce SecurityViewModels
@@ -127,9 +164,12 @@ export class SecurityService {
     return viewModels;
   }
 
-  // Simulates GET /api/recently-searched
+  // GET /api/recently-searched
   private loadRecentSearches(): Observable<RecentSearch[]> {
-    return of(recentSearchedData as RecentSearch[]).pipe(delay(SIMULATED_DELAY_MS));
+    return this.http.get<RecentSearch[]>(`${environment.apiBaseUrl}/recently-searched.mock.json`).pipe(
+      retry({ count: 2, delay: 1000 }),
+      catchError((err: HttpErrorResponse) => throwError(() => new Error(toHttpErrorMessage(err)))),
+    );
   }
 
   /**
@@ -141,7 +181,7 @@ export class SecurityService {
     combineLatest([this.loadRecentSearches(), this.securities$])
       .pipe(
         // WHY: take(1) completes the subscription after the first combined emission —
-        // both sources have emitted at least once (after their simulated delay).
+        // both sources have emitted at least once (after the HTTP response arrives).
         take(1),
         map(([recent, securities]) => {
           const bySymbol = new Map(securities.map((s) => [s.symbol, s]));

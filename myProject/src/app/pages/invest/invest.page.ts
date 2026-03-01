@@ -16,7 +16,7 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/angular/standalone';
-import { BehaviorSubject, Observable, catchError, combineLatest, map, of, startWith } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, map, of, startWith, switchMap } from 'rxjs';
 
 import { CardComponent } from '../../components/card/card.component';
 import { InstrumentComponent } from '../../components/instrument/instrument.component';
@@ -24,6 +24,7 @@ import {
   BuyConfirmedPayload,
   OrderFormComponent,
 } from '../../components/order-form/order-form.component';
+import { AsyncState } from '../../models/async-state.model';
 import { HoldingViewModel } from '../../models/holding-view.model';
 import { SecurityViewModel } from '../../models/security-view.model';
 import { HoldingsService } from '../../services/holdings.service';
@@ -35,11 +36,6 @@ const HOLDINGS_PAGE_SIZE = 3;
 type HoldingsState =
   | { status: 'loading' }
   | { status: 'success'; data: HoldingViewModel[]; hasMore: boolean }
-  | { status: 'error'; error: string };
-
-type TrendingState =
-  | { status: 'loading' }
-  | { status: 'success'; data: SecurityViewModel[] }
   | { status: 'error'; error: string };
 
 @Component({
@@ -71,19 +67,19 @@ export class InvestPage {
   // template updates automatically when either the list or the count changes.
   private readonly visibleCount = new BehaviorSubject<number>(HOLDINGS_PAGE_SIZE);
 
-  readonly holdingsState$: Observable<HoldingsState> = combineLatest([
-    this.holdingsService.holdings$,
-    this.visibleCount.asObservable(),
-  ]).pipe(
-    // Slice to the current visible count, and compute whether more items remain.
-    map(([data, count]) => ({
-      status: 'success' as const,
-      data: data.slice(0, count),
-      hasMore: data.length > count,
-    })),
-    startWith({ status: 'loading' as const }),
-    catchError(() =>
-      of({ status: 'error' as const, error: 'Failed to load holdings.' }),
+  readonly holdingsState$: Observable<HoldingsState> = this.visibleCount.pipe(
+    // WHY switchMap: when the user clicks "Show more", the old inner observable is cancelled
+    // and a new one starts with the updated limit. With a real paginated API this also
+    // cancels any in-flight GET so a slow page-1 response can never overwrite page-2 data.
+    switchMap((limit) =>
+      this.holdingsService.getHoldingsPage(limit).pipe(
+        map(({ data, hasMore }) => ({ status: 'success' as const, data, hasMore })),
+        // startWith covers the loading window on initial load and each "Show more" click.
+        startWith({ status: 'loading' as const }),
+        catchError((err: unknown) =>
+          of({ status: 'error' as const, error: err instanceof Error ? err.message : 'Failed to load holdings.' }),
+        ),
+      ),
     ),
   );
 
@@ -92,12 +88,12 @@ export class InvestPage {
       map((holdings) => holdings.reduce((sum, h) => sum + h.totalValue, 0)),
     );
 
-  readonly trendingState$: Observable<TrendingState> =
+  readonly trendingState$: Observable<AsyncState<SecurityViewModel[]>> =
     this.securityService.getTopByVolume(10).pipe(
       map((data) => ({ status: 'success' as const, data })),
       startWith({ status: 'loading' as const }),
-      catchError(() =>
-        of({ status: 'error' as const, error: 'Failed to load trending.' }),
+      catchError((err: unknown) =>
+        of({ status: 'error' as const, error: err instanceof Error ? err.message : 'Failed to load trending.' }),
       ),
     );
 

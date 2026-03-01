@@ -19,6 +19,7 @@ import {
   Observable,
   catchError,
   debounceTime,
+  distinctUntilChanged,
   map,
   of,
   startWith,
@@ -31,19 +32,10 @@ import {
   BuyConfirmedPayload,
   OrderFormComponent,
 } from '../../components/order-form/order-form.component';
+import { AsyncState } from '../../models/async-state.model';
 import { SecurityViewModel } from '../../models/security-view.model';
 import { HoldingsService } from '../../services/holdings.service';
 import { SecurityService } from '../../services/security.service';
-
-type SecuritiesState =
-  | { status: 'loading' }
-  | { status: 'success'; data: SecurityViewModel[] }
-  | { status: 'error'; error: string };
-
-type TopStocksState =
-  | { status: 'loading' }
-  | { status: 'success'; data: SecurityViewModel[] }
-  | { status: 'error'; error: string };
 
 /**
  * DiscoverPage — two-mode browse/search experience.
@@ -80,12 +72,12 @@ export class DiscoverPage {
    * Top 3 securities by volume for the default view.
    * startWith ensures the template has a non-null state on first render.
    */
-  readonly topStocksState$: Observable<TopStocksState> =
+  readonly topStocksState$: Observable<AsyncState<SecurityViewModel[]>> =
     this.securityService.getTopByVolume(3).pipe(
       map((data) => ({ status: 'success' as const, data })),
       startWith({ status: 'loading' as const }),
-      catchError(() =>
-        of({ status: 'error' as const, error: 'Failed to load.' }),
+      catchError((err: unknown) =>
+        of({ status: 'error' as const, error: err instanceof Error ? err.message : 'Failed to load.' }),
       ),
     );
 
@@ -103,14 +95,17 @@ export class DiscoverPage {
    * Full reactive search pipeline — active when the searchbar is focused.
    * Outer startWith guards against the 200ms debounce window emitting nothing.
    */
-  readonly securitiesState$: Observable<SecuritiesState> = this.searchQuery.pipe(
+  readonly securitiesState$: Observable<AsyncState<SecurityViewModel[]>> = this.searchQuery.pipe(
     debounceTime(200),
+    // WHY: skip if the effective query hasn't changed (e.g. user types "AP", deletes, re-types "AP").
+    // Client-side this is free; with a real search endpoint it prevents a duplicate HTTP request.
+    distinctUntilChanged(),
     switchMap((query) =>
       this.securityService.searchSecurities(query).pipe(
         map((data) => ({ status: 'success' as const, data })),
         startWith({ status: 'loading' as const }),
-        catchError(() =>
-          of({ status: 'error' as const, error: 'Failed to load securities.' }),
+        catchError((err: unknown) =>
+          of({ status: 'error' as const, error: err instanceof Error ? err.message : 'Failed to load securities.' }),
         ),
       ),
     ),
