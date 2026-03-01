@@ -1,0 +1,59 @@
+// discover.page.scss — styles for the Discover tab.
+// Minimal: layout is mostly handled by Ionic components; we only need state helpers.
+
+@use 'theme/colors' as c;
+
+ion-header {
+  box-shadow: none;
+
+  &::after {
+    display: none;
+  }
+}
+
+ion-searchbar {
+  padding: 16px 12px;
+  --border-radius: 30px; // Ionic CSS 自定义属性，控制搜索框的圆角
+}
+
+.section {
+  padding: 0 0 24px;
+
+  &__heading {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ion-text-color, #{c.$text});
+    margin: 14px 0;
+    padding: 0 20px;
+  }
+}
+
+.top-stocks {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 0 16px 8px;
+  scrollbar-width: none; // hide scrollbar on Firefox
+
+  &::-webkit-scrollbar {
+    display: none; // hide scrollbar on WebKit
+  }
+
+  &__item {
+    flex-shrink: 0;
+    // ~85vw shows a peek of the next card, hinting that more can be swiped
+    width: calc(100vw - 64px);
+  }
+}
+
+.state-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  color: var(--ion-color-medium);
+
+  &--error {
+    color: var(--ion-color-danger);
+  }
+}

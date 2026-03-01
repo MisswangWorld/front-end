@@ -7,13 +7,16 @@ import { SecurityViewModel } from '../../models/security-view.model';
 /**
  * Displays one row in a securities list.
  *
- * Variant A — Discover (shares not provided):
+ * Variant A — Discover search results (shares not provided, showPrice false):
+ *   symbol | fullName
+ *
+ * Variant B — Recently searched / browse (shares not provided, showPrice true):
  *   symbol | fullName                    $price
  *
- * Variant B — Holding (shares provided):
+ * Variant C — Holding (shares provided):
  *   symbol | N shares       $price   [+X.XX% badge]
  *
- * The parent page decides which variant to activate by passing `shares` and `changePercent`.
+ * The parent page decides which variant to activate via `shares`, `changePercent`, `showPrice`.
  * This component never reads from a service.
  */
 @Component({
@@ -28,6 +31,8 @@ export class InstrumentComponent {
   @Input({ required: true }) security!: SecurityViewModel;
   @Input() shares: number | null = null;
   @Input() changePercent: number | null = null;
+  /** Whether to render the price column. Default true; pass false for search results. */
+  @Input() showPrice = true;
   @Output() readonly buyClicked = new EventEmitter<void>();
 
   // Returns the CSS modifier class that controls the badge colour

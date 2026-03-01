@@ -38,6 +38,12 @@ npm install --legacy-peer-deps
   **Decision**: Join exclusively on `symbol`. The `id` fields are treated as internal database keys and never exposed to the component layer.
   **Why**: `symbol` is the stable, human-readable identifier used across both files and matches what a real securities API would use as the join key.
 
+- **What**: Some securities in `details.json` have no matching record in `pricing.json`, and vice versa — the two datasets are not perfectly aligned.
+  **Decision**: Securities that cannot be matched in both files are silently dropped and never reach the component layer. This applies in two places:
+  1. `SecurityService.joinSecurities()` — skips any `SecurityDetail` with no matching `SecurityPricing` entry when building the main `securities$` stream.
+  2. `SecurityService.initRecentSearches()` — filters out any recently-searched symbol that is absent from the already-joined `securities$` (e.g. `FIG` from the Figma mockup, which has no entry in the dataset).
+  **Why**: `SecurityViewModel` requires price fields (`ask`, `open`, `close`, `high`, `low`) to be non-null numbers. Every component that renders a security row — `InstrumentComponent`, `CardComponent`, `OrderFormComponent` — relies on these fields being present. Allowing null prices would require defensive handling in every render path and every computed getter (`computedShares`, `priceRange`, `priceChangePercent`). Dropping incomplete records at the data layer is the simpler and safer boundary: components receive only well-formed ViewModels and never need to handle a "no price" state.
+
 - **What**: Figma only defines the gain (green) price change state — loss and flat states are not designed.
   **Decision**: Loss renders in red with a `-` prefix; flat renders in muted grey (`ion-color-medium`) with `0.00%`.
   **Why**: Red for loss and grey for flat are universal conventions in trading UIs (Robinhood, CommSec, Stake itself). Omitting them would leave the UI broken for any non-gain position.
@@ -49,6 +55,14 @@ npm install --legacy-peer-deps
 - **What**: The "Change" column in the Holdings list is ambiguous — it could mean today's price movement or the position's unrealised gain.
   **Decision**: Render `unrealisedGainPercent` (ask vs averageCost) in the Holdings "Change" badge, not `priceChangePercent`.
   **Why**: The Holdings list is a portfolio view — the most meaningful number for an investor is how their position is performing relative to what they paid, not how the stock moved today. Unrealised gain answers "am I up or down on this trade?" which is what a holdings screen is for.
+
+- **What**: The "Trending stocks" section in Invest tab has no design spec — no sorting rule, count, or selection criteria were provided.
+  **Decision**: Display the top 10 securities ranked by `volume` descending.
+  **Why**: Volume is the most universally recognised proxy for market interest / momentum in trading UIs (high volume = people are actively trading it). It is also the only readily available ranking signal in `details.json` besides `marketCap`. 10 items gives a horizontally scrollable list with enough variety without overwhelming the screen.
+
+- **What**: The "recently searched" feature requires a `POST /api/recently-searched` to persist each viewed security, but simulating write operations (with realistic conflict handling, auth headers, ordering guarantees) adds complexity without adding learning value to this assessment.
+  **Decision**: `GET /api/recently-searched` is fully simulated via `recently-searched.mock.json`. The `POST` is replaced by an in-memory `trackSearch()` call in `SecurityService` — when the user taps a security row, it is prepended to the `BehaviorSubject` that drives `recentSearches$`.
+  **Why**: The UI behaviour (list updates immediately, deduplicated, capped at 10) is fully exercised. The only missing piece is persistence across page reloads, which is not observable in a demo session.
 
 - **What**: The current `details.json` dataset only contains `stock` and `etf` types — no `otc` entries are present.
   **Decision**: `SecurityType` in `security-detail.model.ts` is still defined as `'stock' | 'etf' | 'otc'`, and `TypeBadgeComponent` renders all three variants.
@@ -99,6 +113,7 @@ This section documents the API structure expected in a production environment. I
 | `GET` | `/api/securities` | All tradeable securities — static metadata (symbol, name, type, logo, volume, marketCap) |
 | `GET` | `/api/securities/:symbol/price` | Live pricing for one security (open, close, ask, high, low) |
 | `GET` | `/api/holdings` | Authenticated user's current portfolio positions |
+| `GET` | `/api/recently-searched` | The authenticated user's last searched securities — returns `{ symbol }[]` only |
 | `POST` | `/api/orders` | Place a buy order `{ symbol, quantity, price }` |
 
 ### Why two separate endpoints for securities?
@@ -129,6 +144,22 @@ SecurityPricing (pricing.json) ──┘
 ```
 
 The holdings endpoint owns only position data. It does not duplicate security metadata, which is already available from `/api/securities`.
+
+### Recently searched data model
+
+`GET /api/recently-searched` returns a lean list of symbol references. The frontend enriches each entry with full metadata and pricing via the same join used for holdings:
+
+```json
+[{ "symbol": "FIG" }, { "symbol": "AAPL" }, { "symbol": "TSLA" }]
+```
+
+**Why only `symbol`?** The recently-searched endpoint is an activity log owned by the user session — it does not duplicate security data. Any security field change (price, name, logo) is always reflected correctly because the enrichment happens client-side at render time, not at write time.
+
+**What the POST would look like** (not simulated — see Design Assumptions):
+
+```json
+POST /api/recently-searched  →  { "symbol": "AAPL" }
+```
 
 ### Order response
 

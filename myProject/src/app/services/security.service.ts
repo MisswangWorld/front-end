@@ -4,8 +4,9 @@
 
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, combineLatest, of } from 'rxjs';
-import { delay, map, shareReplay } from 'rxjs/operators';
+import { delay, map, shareReplay, take } from 'rxjs/operators';
 
+import { RecentSearch } from '../models/recent-search.model';
 import { SecurityDetail } from '../models/security-detail.model';
 import { SecurityPricing } from '../models/security-pricing.model';
 import { SecurityViewModel } from '../models/security-view.model';
@@ -15,6 +16,7 @@ import { SIMULATED_DELAY_MS } from '../constants';
 // If we later switch to real HttpClient.get(), only this file changes.
 import detailsData from '../../assets/data/details.json';
 import pricingData from '../../assets/data/pricing.json';
+import recentSearchedData from '../../assets/data/recently-searched.mock.json';
 
 
 @Injectable({ providedIn: 'root' })
@@ -22,6 +24,11 @@ export class SecurityService {
   private readonly securities$: Observable<SecurityViewModel[]> = this.buildSecuritiesStream();
   private readonly recentSearchesSubject = new BehaviorSubject<SecurityViewModel[]>([]);
   public readonly recentSearches$ = this.recentSearchesSubject.asObservable();
+
+  constructor() {
+    // Seed recently-searched from mock API on service init
+    this.initRecentSearches();
+  }
 
   // Returns the full list of all securities as a typed Observable
   public getSecurities(): Observable<SecurityViewModel[]> {
@@ -118,6 +125,35 @@ export class SecurityService {
     }
 
     return viewModels;
+  }
+
+  // Simulates GET /api/recently-searched
+  private loadRecentSearches(): Observable<RecentSearch[]> {
+    return of(recentSearchedData as RecentSearch[]).pipe(delay(SIMULATED_DELAY_MS));
+  }
+
+  /**
+   * Seeds recentSearchesSubject from the mock API on service startup.
+   * Joins the raw symbol list with the full securities stream to produce ViewModels.
+   * take(1): securities$ is shareReplay'd so this only needs to run once.
+   */
+  private initRecentSearches(): void {
+    combineLatest([this.loadRecentSearches(), this.securities$])
+      .pipe(
+        // WHY: take(1) completes the subscription after the first combined emission —
+        // both sources have emitted at least once (after their simulated delay).
+        take(1),
+        map(([recent, securities]) => {
+          const bySymbol = new Map(securities.map((s) => [s.symbol, s]));
+          // Map each raw { symbol } record to its full ViewModel; skip unknowns.
+          return recent
+            .map((r) => bySymbol.get(r.symbol))
+            .filter((s): s is SecurityViewModel => s !== undefined);
+        }),
+      )
+      .subscribe((viewModels) => {
+        this.recentSearchesSubject.next(viewModels);
+      });
   }
 
   // Merges one SecurityDetail + one SecurityPricing into a SecurityViewModel

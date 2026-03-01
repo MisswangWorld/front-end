@@ -12,8 +12,10 @@
       }
     </div>
 
-    <!-- CENTER-RIGHT: current price -->
-    <span class="row__price">{{ security.ask | currency:'USD':'symbol':'1.2-2' }}</span>
+    <!-- CENTER-RIGHT: current price (hidden in search-results variant) -->
+    @if (showPrice) {
+      <span class="row__price">{{ security.ask | currency:'USD':'symbol':'1.2-2' }}</span>
+    }
 
     <!-- FAR RIGHT: change badge (holdings variant only) -->
     @if (shares !== null && changePercent !== null) {
