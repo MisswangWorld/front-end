@@ -9,12 +9,12 @@ export const routes: Routes = [
       {
         path: 'invest',
         loadComponent: () =>
-          import('../invest/invest.page').then((m) => m.InvestPage),
+          import('../pages/invest/invest.page').then((m) => m.InvestPage),
       },
       {
         path: 'discover',
         loadComponent: () =>
-          import('../discover/discover.page').then((m) => m.DiscoverPage),
+          import('../pages/discover/discover.page').then((m) => m.DiscoverPage),
       },
       {
         path: '',

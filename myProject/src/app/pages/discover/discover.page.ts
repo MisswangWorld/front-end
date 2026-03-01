@@ -150,8 +150,11 @@ export class DiscoverPage {
   }
 
   handleBuyClick(security: SecurityViewModel): void {
-    // Record this security so it appears in "Recently searched"
-    this.securityService.trackSearch(security);
+    // WHY: only record a search when the user is actively searching (focused mode).
+    // Tapping from the recently-searched list or top-3 cards should not mutate search history.
+    if (this.isFocused) {
+      this.securityService.trackSearch(security);
+    }
     this.selectedSecurity = security;
     this.cdr.markForCheck();
   }
