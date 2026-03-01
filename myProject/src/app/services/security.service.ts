@@ -20,6 +20,11 @@ import { toHttpErrorMessage } from '../utils/http-error.util';
 
 @Injectable({ providedIn: 'root' })
 export class SecurityService {
+  // WHY first: inject() field initializers must run before any field that calls
+  // methods which depend on them. Moving http here ensures this.http is defined
+  // before securities$ initializer calls buildSecuritiesStream() → loadDetails().
+  private readonly http = inject(HttpClient);
+
   private readonly securities$: Observable<SecurityViewModel[]> = this.buildSecuritiesStream();
 
   /**
@@ -42,8 +47,6 @@ export class SecurityService {
 
   private readonly recentSearchesSubject = new BehaviorSubject<SecurityViewModel[]>([]);
   public readonly recentSearches$ = this.recentSearchesSubject.asObservable();
-
-  private readonly http = inject(HttpClient);
 
   constructor() {
     // Seed recently-searched from mock API on service init
