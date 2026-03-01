@@ -16,7 +16,7 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/angular/standalone';
-import { Observable, catchError, map, of, startWith } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, combineLatest, map, of, startWith } from 'rxjs';
 
 import { CardComponent } from '../../components/card/card.component';
 import { InstrumentComponent } from '../../components/instrument/instrument.component';
@@ -29,9 +29,12 @@ import { SecurityViewModel } from '../../models/security-view.model';
 import { HoldingsService } from '../../services/holdings.service';
 import { SecurityService } from '../../services/security.service';
 
+// How many holdings to show initially and per "Show more" click.
+const HOLDINGS_PAGE_SIZE = 3;
+
 type HoldingsState =
   | { status: 'loading' }
-  | { status: 'success'; data: HoldingViewModel[] }
+  | { status: 'success'; data: HoldingViewModel[]; hasMore: boolean }
   | { status: 'error'; error: string };
 
 type TrendingState =
@@ -63,14 +66,26 @@ export class InvestPage {
   private readonly securityService = inject(SecurityService);
   private readonly cdr = inject(ChangeDetectorRef);
 
-  readonly holdingsState$: Observable<HoldingsState> =
-    this.holdingsService.holdings$.pipe(
-      map((data) => ({ status: 'success' as const, data })),
-      startWith({ status: 'loading' as const }),
-      catchError(() =>
-        of({ status: 'error' as const, error: 'Failed to load holdings.' }),
-      ),
-    );
+  // Tracks how many holdings are currently visible. Starts at one page (3).
+  // WHY BehaviorSubject: we need to combine it with holdings$ reactively so the
+  // template updates automatically when either the list or the count changes.
+  private readonly visibleCount = new BehaviorSubject<number>(HOLDINGS_PAGE_SIZE);
+
+  readonly holdingsState$: Observable<HoldingsState> = combineLatest([
+    this.holdingsService.holdings$,
+    this.visibleCount.asObservable(),
+  ]).pipe(
+    // Slice to the current visible count, and compute whether more items remain.
+    map(([data, count]) => ({
+      status: 'success' as const,
+      data: data.slice(0, count),
+      hasMore: data.length > count,
+    })),
+    startWith({ status: 'loading' as const }),
+    catchError(() =>
+      of({ status: 'error' as const, error: 'Failed to load holdings.' }),
+    ),
+  );
 
   readonly totalPortfolioValue$: Observable<number> =
     this.holdingsService.holdings$.pipe(
@@ -90,6 +105,11 @@ export class InvestPage {
 
   trackBySymbol(_index: number, security: SecurityViewModel): string {
     return security.symbol;
+  }
+
+  /** Reveal the next page of holdings. Each click adds HOLDINGS_PAGE_SIZE more rows. */
+  handleShowMore(): void {
+    this.visibleCount.next(this.visibleCount.getValue() + HOLDINGS_PAGE_SIZE);
   }
 
   handleBuyClick(security: SecurityViewModel): void {

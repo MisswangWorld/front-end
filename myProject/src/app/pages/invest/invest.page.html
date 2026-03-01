@@ -47,6 +47,10 @@
           <p class="state-center">No holdings yet.</p>
         }
       </ion-list>
+
+      @if (holdingsState.hasMore) {
+        <button class="show-more-btn" (click)="handleShowMore()">Show more</button>
+      }
     }
   </section>
 

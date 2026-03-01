@@ -1,0 +1,72 @@
+<!-- order-form.component.html -->
+@if (security !== null) {
+
+  <!-- Backdrop: tap to dismiss -->
+  <div class="backdrop" @backdropFade (click)="handleDismiss()" aria-hidden="true"></div>
+
+  <!-- Sheet slides up from bottom -->
+  <div class="sheet" @sheetSlide role="dialog" aria-modal="true">
+
+    <!-- Header: "NVDA $821.27" — symbol + price on the same line, large bold -->
+    <h2 class="sheet__title">
+      {{ security.symbol }}&nbsp;{{ security.ask | currency:'USD':'symbol':'1.2-2' }}
+    </h2>
+
+    <!-- Input fields — bordered box style matching Figma -->
+    <div class="field">
+      <span class="field__label">Price</span>
+      <span class="field__value">At market</span>
+    </div>
+
+    <div class="field field--active">
+      <label class="field__label" for="amount-input">Amount</label>
+      <div class="field__input-row">
+        <span class="field__currency">$</span>
+        <input
+          id="amount-input"
+          class="field__input"
+          type="number"
+          min="0"
+          placeholder="0.00"
+          [value]="amount"
+          (input)="handleAmountInput($event)"
+        />
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field__label">Shares</span>
+      <!-- Auto-computed from amount ÷ ask price -->
+      <span class="field__value">{{ computedShares }}</span>
+    </div>
+
+    <!--
+      Swipe-to-buy button.
+      The chevron circle is dragged by the user; pointer events are captured on it
+      so fast drags stay responsive even if the pointer leaves the circle.
+      [style.transform] drives the position in real time from dragX.
+      [class.is-dragging] disables the CSS snap-back transition while dragging.
+      When submitting: chevron hidden + label hidden → button looks all-black.
+    -->
+    <div
+      class="swipe-btn"
+      [class.swipe-btn--disabled]="!isAmountValid"
+      [class.swipe-btn--submitting]="formStatus === 'submitting'"
+    >
+      <div
+        class="swipe-btn__chevron"
+        [class.is-dragging]="isDragging"
+        [style.transform]="'translateX(' + dragX + 'px)'"
+        (pointerdown)="handlePointerDown($event)"
+        (pointermove)="handlePointerMove($event)"
+        (pointerup)="handlePointerUp()"
+        (pointercancel)="handlePointerUp()"
+      >
+        <img src="assets/icons/buy-chevrons.svg" alt="" aria-hidden="true" />
+      </div>
+      <span class="swipe-btn__label">Swipe to buy</span>
+    </div>
+
+  </div>
+
+}

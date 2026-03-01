@@ -42,15 +42,13 @@ export class HoldingsService {
       const blendedCost =
         (existing.shares * existing.averageCost + shares * averageCost) / totalShares;
 
-      this.positionsSubject.next(
-        current.map((p) =>
-          p.symbol === symbol
-            ? { symbol, shares: totalShares, averageCost: blendedCost }
-            : p,
-        ),
-      );
+      // WHY: remove the old entry and prepend the updated one so the most-recently
+      // traded position always floats to the top of the holdings list.
+      const rest = current.filter((p) => p.symbol !== symbol);
+      this.positionsSubject.next([{ symbol, shares: totalShares, averageCost: blendedCost }, ...rest]);
     } else {
-      this.positionsSubject.next([...current, { symbol, shares, averageCost }]);
+      // Prepend so newly bought positions appear first.
+      this.positionsSubject.next([{ symbol, shares, averageCost }, ...current]);
     }
   }
 
