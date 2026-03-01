@@ -1,14 +1,32 @@
 // _colors.scss — single source of truth for all app colors.
 // Usage: @use 'theme/colors' as c;  →  color: c.$text;
 
-$text:       #141414;
-$surface:    #ffffff;
-$border:     #E3E3E3;
-$text-muted: #959595;
+// ── Neutrals ──────────────────────────────────────────────────────────────────
+$text:       #141414;  // near-black primary text
+$surface:    #ffffff;  // white / card / sheet background
+$border:     #E3E3E3;  // dividers, field outlines
+$text-muted: #959595;  // secondary / placeholder text
+$black:      #000000;  // pure black (selected tab icon, CSS filter anchor)
 
-$gain:       #23B692;
-$loss:       #ef4444;
+// ── Status / P&L ──────────────────────────────────────────────────────────────
+$gain: #23B692;  // positive price change → teal green
+$loss: #ef4444;  // negative price change → red
 
-$badge-stock: #141414;
-$badge-etf:   #2428fb;
-$badge-otc:   #d97706;
+// ── Type Badges ───────────────────────────────────────────────────────────────
+$badge-stock: #141414;  // STOCK badge text/border (same value as $text)
+$badge-etf:   #2428fb;  // ETF badge text/border → blue
+$badge-otc:   #d97706;  // OTC badge text/border → amber
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+$tab-icon:        #9e9e9e;  // unselected tab icon / label
+$tab-icon-active: #000000;  // selected tab icon / label → pure black
+
+// ── Ionic system aliases ──────────────────────────────────────────────────────
+// Ionic's default resolved values, kept here so --app-xxx vars have a
+// compile-time SCSS fallback and don't depend on Ionic being loaded first.
+$medium: #92949c;  // --ion-color-medium default
+$danger: #eb445a;  // --ion-color-danger default
+
+// ── Overlays & Elevation ──────────────────────────────────────────────────────
+$backdrop:     rgba(0, 0, 0, 0.45);  // modal / sheet backdrop scrim
+$shadow-sheet: rgba(0, 0, 0, 0.12);  // bottom sheet elevation shadow

@@ -102,6 +102,81 @@ If the backend data format changes, the fix is in the service's join method only
 The downside is carrying ~7 fields the current Holdings list doesn't render. This is an acceptable cost given the reusability and type-safety benefits.
 
 
+## Theming Architecture
+
+The colour system is designed as a **two-layer, scaleable token pipeline** — not just a collection of variables.
+
+### Layer 1 — Compile-time constants (`_colors.scss`)
+
+All raw hex values and rgba values live here and nowhere else. Every value has a name and a comment explaining its semantic role:
+
+```scss
+$gain:   #23B692;  // positive price change → teal green
+$loss:   #ef4444;  // negative price change → red
+$medium: #92949c;  // Ionic --ion-color-medium default
+```
+
+These are **SCSS variables** — they are resolved at build time and baked into the compiled CSS. Changing a value here changes it everywhere instantly.
+
+### Layer 2 — Runtime tokens (`variables.scss`)
+
+Every SCSS variable is promoted to a **CSS custom property** in `:root`:
+
+```scss
+:root {
+  --app-gain: #{c.$gain};
+  --ion-text-color: #{c.$text};
+  --app-medium: var(--ion-color-medium);
+}
+```
+
+CSS custom properties are **live in the browser** — they can be overridden at any time without a rebuild.
+
+### Why two layers?
+
+| Concern | Layer 1 (SCSS) | Layer 2 (CSS custom props) |
+|---------|---------------|--------------------------|
+| Source of truth | ✓ One file, one value | — |
+| Build-time safety | ✓ Typos caught at compile | — |
+| Runtime override (dark mode, themes) | ✗ Requires rebuild | ✓ Override with `@media` |
+| JavaScript access | ✗ Gone after compile | ✓ `getComputedStyle()` |
+
+### What component SCSS files look like
+
+Components only consume `var(--app-xxx)` or `var(--ion-xxx)` — they have zero knowledge of raw colour values:
+
+```scss
+/* card.component.scss */
+color: var(--ion-text-color);
+border-top: 1px solid var(--ion-border-color);
+color: var(--app-medium);
+```
+
+No `@use 'theme/colors'` import. No hex codes. Components are fully decoupled from the palette.
+
+### Adding dark mode
+
+The entire app can be themed by adding a single block to `variables.scss`:
+
+```scss
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ion-text-color:       #f5f5f5;
+    --ion-background-color: #1c1c1e;
+    --ion-border-color:     #3a3a3c;
+    --app-text-muted:       #8e8e93;
+    --app-tab-icon:         #636366;
+    --app-tab-icon-active:  #ffffff;
+  }
+}
+```
+
+Zero component files need to change. The pipeline absorbs the override automatically.
+
+### Ionic integration
+
+For the three core Ionic vars (`--ion-text-color`, `--ion-background-color`, `--ion-border-color`), setting them in `:root` means all Ionic built-in components (`ion-item`, `ion-list`, `ion-card`, `ion-searchbar`) inherit the correct colours without any extra configuration. Our custom components and Ionic's components stay visually consistent automatically.
+
 ## API / Data Model Design
 
 This section documents the API structure expected in a production environment. In this assessment, real HTTP calls are simulated using `of(data).pipe(delay(300))` inside the service layer — the frontend is written against this contract so a real `HttpClient.get()` could replace the mock with no component changes.

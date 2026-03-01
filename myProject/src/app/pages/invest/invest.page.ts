@@ -18,16 +18,16 @@ import {
 } from '@ionic/angular/standalone';
 import { Observable, catchError, map, of, startWith } from 'rxjs';
 
-import { CardComponent } from '../components/card/card.component';
-import { InstrumentComponent } from '../components/instrument/instrument.component';
+import { CardComponent } from '../../components/card/card.component';
+import { InstrumentComponent } from '../../components/instrument/instrument.component';
 import {
   BuyConfirmedPayload,
   OrderFormComponent,
-} from '../components/order-form/order-form.component';
-import { HoldingViewModel } from '../models/holding-view.model';
-import { SecurityViewModel } from '../models/security-view.model';
-import { HoldingsService } from '../services/holdings.service';
-import { SecurityService } from '../services/security.service';
+} from '../../components/order-form/order-form.component';
+import { HoldingViewModel } from '../../models/holding-view.model';
+import { SecurityViewModel } from '../../models/security-view.model';
+import { HoldingsService } from '../../services/holdings.service';
+import { SecurityService } from '../../services/security.service';
 
 type HoldingsState =
   | { status: 'loading' }

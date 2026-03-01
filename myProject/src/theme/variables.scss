@@ -1,2 +1,42 @@
-// For information on how to create your own theme, please refer to:
-// https://ionicframework.com/docs/theming/
+// variables.scss — CSS custom properties for runtime theming.
+// SCSS vars in _colors.scss are compile-time constants (fallbacks).
+// CSS custom properties here are runtime tokens — override them in a
+// @media (prefers-color-scheme: dark) block to get free dark mode.
+@use 'theme/colors' as c;
+
+:root {
+  // ── Ionic core ────────────────────────────────────────────────────────────
+  // Setting these ensures all built-in Ionic components (ion-item, ion-card,
+  // ion-list…) automatically inherit the same colours as our custom components.
+  --ion-text-color:       #{c.$text};
+  --ion-background-color: #{c.$surface};
+  --ion-border-color:     #{c.$border};
+
+  // ── App-specific tokens ───────────────────────────────────────────────────
+  // Used wherever Ionic doesn't have a built-in equivalent var.
+
+  // Text
+  --app-text-muted: #{c.$text-muted};
+
+  // Status / P&L
+  --app-gain: #{c.$gain};
+  --app-loss: #{c.$loss};
+
+  // Type badges
+  --app-badge-stock: #{c.$badge-stock};
+  --app-badge-etf:   #{c.$badge-etf};
+  --app-badge-otc:   #{c.$badge-otc};
+
+  // Navigation
+  --app-tab-icon:        #{c.$tab-icon};
+  --app-tab-icon-active: #{c.$tab-icon-active};
+
+  // Overlays & elevation
+  --app-backdrop:     #{c.$backdrop};
+  --app-shadow-sheet: #{c.$shadow-sheet};
+
+  // Ionic system aliases — decouples our usage from Ionic's vars so dark mode
+  // can override --app-medium / --app-danger independently of Ionic's palette.
+  --app-medium: var(--ion-color-medium);
+  --app-danger: var(--ion-color-danger);
+}

@@ -1,4 +1,3 @@
-@use 'theme/colors' as c;
 
 .badge {
   display: inline-block;
@@ -11,7 +10,7 @@
   line-height: 1.6;
   white-space: nowrap;
 
-  &--stock { color: c.$badge-stock; }
-  &--etf   { color: c.$badge-etf; }
-  &--otc   { color: c.$badge-otc; }
+  &--stock { color: var(--app-badge-stock); }
+  &--etf   { color: var(--app-badge-etf); }
+  &--otc   { color: var(--app-badge-otc); }
 }

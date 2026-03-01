@@ -1,7 +1,6 @@
 // discover.page.scss — styles for the Discover tab.
 // Minimal: layout is mostly handled by Ionic components; we only need state helpers.
 
-@use 'theme/colors' as c;
 
 ion-header {
   box-shadow: none;
@@ -22,7 +21,7 @@ ion-searchbar {
   &__heading {
     font-size: 18px;
     font-weight: 700;
-    color: var(--ion-text-color, #{c.$text});
+    color: var(--ion-text-color);
     margin: 14px 0;
     padding: 0 20px;
   }
@@ -51,9 +50,9 @@ ion-searchbar {
   justify-content: center;
   align-items: center;
   padding: 40px 20px;
-  color: var(--ion-color-medium);
+  color: var(--app-medium);
 
   &--error {
-    color: var(--ion-color-danger);
+    color: var(--app-danger);
   }
 }

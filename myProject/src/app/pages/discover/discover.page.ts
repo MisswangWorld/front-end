@@ -10,12 +10,9 @@ import {
 } from '@angular/core';
 import {
   IonContent,
-  IonHeader,
   IonList,
   IonSearchbar,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
 } from '@ionic/angular/standalone';
 import {
   BehaviorSubject,
@@ -28,15 +25,15 @@ import {
   switchMap,
 } from 'rxjs';
 
-import { CardComponent } from '../components/card/card.component';
-import { InstrumentComponent } from '../components/instrument/instrument.component';
+import { CardComponent } from '../../components/card/card.component';
+import { InstrumentComponent } from '../../components/instrument/instrument.component';
 import {
   BuyConfirmedPayload,
   OrderFormComponent,
-} from '../components/order-form/order-form.component';
-import { SecurityViewModel } from '../models/security-view.model';
-import { HoldingsService } from '../services/holdings.service';
-import { SecurityService } from '../services/security.service';
+} from '../../components/order-form/order-form.component';
+import { SecurityViewModel } from '../../models/security-view.model';
+import { HoldingsService } from '../../services/holdings.service';
+import { SecurityService } from '../../services/security.service';
 
 type SecuritiesState =
   | { status: 'loading' }
@@ -62,12 +59,9 @@ type TopStocksState =
     AsyncPipe,
     CardComponent,
     IonContent,
-    IonHeader,
     IonList,
     IonSearchbar,
     IonSpinner,
-    IonTitle,
-    IonToolbar,
     InstrumentComponent,
     OrderFormComponent,
   ],
