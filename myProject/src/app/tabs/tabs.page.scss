@@ -1,1 +1,24 @@
+// tabs.page.scss
+// Controls tab bar appearance: unselected tabs are muted grey,
+// selected tab (icon + label) turns black.
 
+ion-tab-bar {
+  ion-tab-button {
+    // Unselected state — subdued grey
+    --color: #9e9e9e;
+
+    // Selected state — pure black (overrides Ionic's default blue).
+    // Works for Ionicons that use currentColor (e.g. search-outline).
+    --color-selected: #000000;
+  }
+
+  // portfolio.svg has a hardcoded fill="#959595" and ignores currentColor,
+  // so --color-selected has no effect on it.
+  // WHY filter: brightness(0): multiplies every channel by 0 → forces #000
+  // regardless of the original fill value, without touching the SVG source.
+  ion-tab-button[tab='invest'] {
+    &.tab-selected ion-icon {
+      filter: brightness(0);
+    }
+  }
+}

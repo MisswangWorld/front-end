@@ -1,8 +1,7 @@
+@use 'theme/colors' as c;
+
 // ─── Base card shell ───────────────────────────────────────────────────────
 .card {
-  margin: 0; // parent container controls spacing via gap/padding, not margin
-  cursor: pointer;
-
   ion-card-content {
     padding: 16px;
   }
@@ -11,7 +10,7 @@
 // ─── Shared sub-elements ───────────────────────────────────────────────────
 .card__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 12px;
 
@@ -31,13 +30,14 @@
   &--small {
     width: 28px;
     height: 28px;
+    margin: 8px 0;
   }
 }
 
 .card__symbol {
   font-size: 15px;
-  font-weight: 600;
-  color: var(--ion-text-color, #1a1a1a);
+  font-weight: 500;
+  color: var(--ion-text-color, #{c.$text-muted});
   margin: 0;
 
   // Block variant used in small card where symbol is on its own line
@@ -49,7 +49,7 @@
 
 .card__name {
   font-size: 13px;
-  color: var(--ion-color-medium);
+  color: var(--ion-text-color, #{c.$text-muted});
   margin: 4px 0 0;
   white-space: nowrap;
   overflow: hidden;
@@ -57,14 +57,13 @@
 
   &--small {
     font-size: 12px;
-    margin: 0 0 6px;
+    margin: 0;
   }
 }
 
 .card__price {
   font-weight: 700;
-  margin: 0;
-  color: var(--ion-text-color, #1a1a1a);
+  color: var(--ion-text-color, #{c.$text});
 
   &--large {
     font-size: 28px;
@@ -79,6 +78,7 @@
   &--small {
     font-size: 15px;
     font-weight: 600;
+    margin-top: 12px;
   }
 }
 
@@ -89,7 +89,7 @@
 
 .card__divider {
   border: none;
-  border-top: 1px solid var(--ion-border-color, #e8e8e8);
+  border-top: 1px solid var(--ion-border-color, #{c.$border});
   margin: 12px 0;
 }
 

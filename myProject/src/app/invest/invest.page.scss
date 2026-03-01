@@ -1,0 +1,97 @@
+@use 'theme/colors' as c;
+
+// Ionic renders the header separator as an ::after pseudo-element (iOS)
+// or a box-shadow (MD). Both need to be suppressed.
+ion-header {
+  box-shadow: none;
+
+  &::after {
+    display: none;
+  }
+}
+
+.equity-summary {
+  padding: 20px 20px 24px;
+
+  &__label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ion-text-color, #{c.$text});
+    margin: 0 0 4px;
+  }
+
+  &__value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--ion-text-color, #{c.$text});
+    margin: 0;
+  }
+}
+
+.section {
+  padding: 0 0 24px;
+
+  &__heading {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ion-text-color, #{c.$text});
+    margin: 0 0 12px;
+    padding: 0 20px;
+  }
+}
+
+.col-headers {
+  display: flex;
+  align-items: center;
+
+  padding: 10px 20px 0px 20px;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ion-color-medium);
+
+  &__stock {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__price {
+    min-width: 72px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  &__change {
+    min-width: 76px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+}
+
+.trending-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 20px 8px 20px;
+  scrollbar-width: none; // hide scrollbar on Firefox
+
+  &::-webkit-scrollbar {
+    display: none; // hide scrollbar on WebKit
+  }
+
+  &__item {
+    flex-shrink: 0;
+    width: 160px;
+  }
+}
+
+.state-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  color: var(--ion-color-medium);
+
+  &--error {
+    color: var(--ion-color-danger);
+  }
+}

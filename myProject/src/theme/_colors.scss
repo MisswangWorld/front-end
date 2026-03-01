@@ -1,0 +1,14 @@
+// _colors.scss — single source of truth for all app colors.
+// Usage: @use 'theme/colors' as c;  →  color: c.$text;
+
+$text:       #141414;
+$surface:    #ffffff;
+$border:     red;
+$text-muted: #959595;
+
+$gain:       #23B692;
+$loss:       #ef4444;
+
+$badge-stock: #141414;
+$badge-etf:   #2428fb;
+$badge-otc:   #d97706;

@@ -1,15 +1,88 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>Invest</ion-title>
+    <ion-title>Dashboard</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Invest</ion-title>
-    </ion-toolbar>
-  </ion-header>
 
-  <!-- Holdings list will be added here -->
+  <!-- ── Total equity ─────────────────────────────────────────────── -->
+  <div class="equity-summary">
+    <p class="equity-summary__label">Total equity</p>
+    <p class="equity-summary__value">
+      {{ (totalPortfolioValue$ | async) | currency:'USD':'symbol':'1.0-0' }}
+    </p>
+  </div>
+
+  <!-- ── Holdings ─────────────────────────────────────────────────── -->
+  @let holdingsState = (holdingsState$ | async)!;
+
+  <section class="section">
+    <h2 class="section__heading">Holdings</h2>
+
+    @if (holdingsState.status === 'loading') {
+      <div class="state-center"><ion-spinner name="crescent" /></div>
+    }
+
+    @if (holdingsState.status === 'error') {
+      <p class="state-center state-center--error">{{ holdingsState.error }}</p>
+    }
+
+    @if (holdingsState.status === 'success') {
+      <div class="col-headers">
+        <span class="col-headers__stock">Stock</span>
+        <span class="col-headers__price">Price</span>
+        <span class="col-headers__change">Change</span>
+      </div>
+
+      <ion-list lines="none">
+        @for (holding of holdingsState.data; track trackBySymbol($index, holding)) {
+          <app-instrument
+            [security]="holding"
+            [shares]="holding.shares"
+            [changePercent]="holding.unrealisedGainPercent"
+            (buyClicked)="handleBuyClick(holding)"
+          />
+        } @empty {
+          <p class="state-center">No holdings yet.</p>
+        }
+      </ion-list>
+    }
+  </section>
+
+  <!-- ── Trending stocks ──────────────────────────────────────────── -->
+  @let trendingState = (trendingState$ | async)!;
+
+  <section class="section">
+    <h2 class="section__heading">Trending stocks</h2>
+
+    @if (trendingState.status === 'loading') {
+      <div class="state-center"><ion-spinner name="crescent" /></div>
+    }
+
+    @if (trendingState.status === 'error') {
+      <p class="state-center state-center--error">{{ trendingState.error }}</p>
+    }
+
+    @if (trendingState.status === 'success') {
+      <div class="trending-scroll">
+        @for (security of trendingState.data; track trackBySymbol($index, security)) {
+          <div class="trending-scroll__item">
+            <app-card
+              [security]="security"
+              size="small"
+              (buyClicked)="handleBuyClick(security)"
+            />
+          </div>
+        }
+      </div>
+    }
+  </section>
+
 </ion-content>
+
+<app-order-form
+  [security]="selectedSecurity"
+  (buyConfirmed)="handleBuyConfirmed($event)"
+  (dismissed)="handleDismiss()"
+/>
