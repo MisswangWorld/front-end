@@ -96,6 +96,7 @@ export class OrderFormComponent implements OnChanges {
    * component is destroyed — no manual ngOnDestroy needed.
    */
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   /**
    * Emits when a new security opens while a dismiss-reset is pending.
@@ -103,8 +104,6 @@ export class OrderFormComponent implements OnChanges {
    * the pending state reset so it doesn't clobber the already-clean new form.
    */
   private readonly dismissReset$ = new Subject<void>();
-
-  constructor(private readonly cdr: ChangeDetectorRef) {}
 
   // Reset form whenever a new security is passed in (sheet re-opens)
   ngOnChanges(changes: SimpleChanges): void {

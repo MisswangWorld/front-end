@@ -6,7 +6,7 @@
 // the URL strings in the three private load methods below — nothing else changes.
 
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, combineLatest, throwError } from 'rxjs';
 import { catchError, map, retry, shareReplay, take } from 'rxjs/operators';
 
@@ -43,7 +43,9 @@ export class SecurityService {
   private readonly recentSearchesSubject = new BehaviorSubject<SecurityViewModel[]>([]);
   public readonly recentSearches$ = this.recentSearchesSubject.asObservable();
 
-  constructor(private readonly http: HttpClient) {
+  private readonly http = inject(HttpClient);
+
+  constructor() {
     // Seed recently-searched from mock API on service init
     this.initRecentSearches();
   }

@@ -5,7 +5,7 @@
 // Swapping mock → real API: update the URL in loadHoldings() — nothing else changes.
 
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, combineLatest, throwError } from 'rxjs';
 import { catchError, map, retry, shareReplay } from 'rxjs/operators';
 
@@ -21,10 +21,10 @@ export class HoldingsService {
   private readonly positionsSubject = new BehaviorSubject<HoldingRaw[]>([]);
   public readonly holdings$: Observable<HoldingViewModel[]>;
 
-  constructor(
-    private readonly http: HttpClient,
-    private readonly securityService: SecurityService,
-  ) {
+  private readonly http = inject(HttpClient);
+  private readonly securityService = inject(SecurityService);
+
+  constructor() {
     // WHY: subscribe here (not in a stream) because BehaviorSubject requires a
     // synchronous initial value. loadHoldings() completes after one emission so
     // this subscription auto-cleans — no takeUntilDestroyed() needed.
